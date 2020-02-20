@@ -1,0 +1,234 @@
+---
+title: "DDS Project 1 - Beer Reviews"
+author: "Andrew Leppla"
+date: "2/18/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+```{r import, echo=FALSE}
+Beers = read.csv("C:/Users/aleppla/GitRepos/MDS-6306-Doing-Data-Science/Unit 8 and 9 Case Study 1/Beers.csv",header=T)
+Breweries = read.csv("C:/Users/aleppla/GitRepos/MDS-6306-Doing-Data-Science/Unit 8 and 9 Case Study 1/Breweries.csv",header=T)
+```
+
+## 1. How many breweries are present in each state?
+```{r Breweries by State, echo=FALSE}
+library(dplyr)
+library(tidyverse)
+
+#Table of Number(No.) of Breweries by State in decreasing order
+State_Breweries = Breweries %>% group_by(State) %>% summarize(No.Breweries = n()) %>% arrange(-No.Breweries)
+State_Breweries_df=as.data.frame(State_Breweries)
+State_Breweries_df
+
+#Plot of No. Breweries by State in alphabetical order
+State_Breweries_df %>% ggplot(aes(State,No.Breweries,fill=State)) + geom_col() + ggtitle("Number of Breweries by State") + ylab("# Breweries")
+
+#Plot of No. Breweries by State in decreasing order
+State_Breweries_df$State1=factor(State_Breweries_df$State,levels=State_Breweries_df$State[order(-State_Breweries_df$No.Breweries)]) 
+State_Breweries_df %>% ggplot(aes(State1,No.Breweries,fill=State1)) + geom_col() + ggtitle("Number of Breweries by State") + ylab("# Breweries") + xlab("State")
+```
+
+## 2. Merge beer data with the breweries data. Print the first 6 observations and the last six observations to check the merged file. 
+```{r Merge Beers and Breweries, echo=FALSE}
+#Inspect the data for merging consistency
+
+summary(Breweries$Brew_ID) #558 breweries
+summary(Beers$Brewery_id) #558 breweries
+
+#Outer Merge
+Beer = merge(Breweries,Beers,by.x="Brew_ID",by.y="Brewery_id",all = TRUE,suffixes=c(".Brewery",".Beer"))
+
+head(Beer,n=6)
+tail(Beer,n=6)
+
+```
+
+## 3. Address the missing values in each column.
+
+There are 5 missing values for Style, 62 missing values for ABV, and 1,005 missing values for IBU.  
+
+First, 2 of the 5 missing Style values were imputed based on the individual beer names.  "OktoberFiesta" had a beer name, ABV, and IBU that were consistent with the other Oktoberfest style beers.  Similarly, "Kilt Lifter Scottish-Style Ale" was consistent with the Scottish Ales style beers.  The remaining 3 beers with missing Style values did not have enough information to classify their Style.  For those 3, Style was left blank, and the missing IBU and ABV values were set to the overall median values of the entire data set.
+
+Missing ABV and IBU values were generally addressed by replacing NA's with the median values for each specific beer Style.  All of the missing ABV values were imputed this way except for the 3 beers mentioned above with missing Style values.  55 of the 1,005 missing IBU values could not be imputed this way because those Styles were missing all IBU values.  These 55 beers were associated with 10 different Styles which are address next.                  
+
+Ciders, Meads, Shandies, and Rauchbiers (smoked beers) styles are all typically made with no hops or bittering of any kind.  These missing IBU values were set to 0 based on this domain knowledge.  There were 2 exceptions where the product names indicated there may be some hops added contrary to the style conventions: Cider "Nunica Pine" and Mead "Nectar of Hops".  For these 2, the missing IBU values were set to the overall median IBU value for the data set.            
+
+Finally, the remaining missing IBU values were set to the overall median IBU value for the data set.
+
+All further analyses were done by both exlcuding the missing values and using the imputed values. 
+```{r Merge and Missing Values, echo=FALSE}
+summary(Beer) #62 NA ABV values, 1005 NA IBU values
+length(Beer$IBU) #Almost half of IBUs are NAs
+
+Beer %>% filter(is.na(ABV)) #Some Styles are blank
+Beer %>% filter(Style=='') #5 missing beer Styles  
+
+#Replace the missing Styles based on Beer Name 
+Beer$Style[Beer$Name.Beer=="OktoberFiesta"]="MÃ¤rzen / Oktoberfest"
+Beer$Style[Beer$Name.Beer=="Kilt Lifter Scottish-Style Ale"]="Scottish Ale"
+
+#Mean ABV by Style
+Style_ABV = Beer %>% filter(!is.na(ABV)) %>% group_by(Style) %>% summarize(median.ABV=median(ABV),count=n()) %>% arrange(Style)
+Style_ABV_df=as.data.frame(Style_ABV)
+
+#Replace the NA ABVs with the median ABV by Style
+Beer = merge(Beer,Style_ABV,by="Style",all=T)
+Beer$ABV1=ifelse(is.na(Beer$ABV),Beer$median.ABV,Beer$ABV)
+summary(Beer$ABV1) #3 remaining NAs
+
+#Replace last 3 NAs with the overall median ABV
+summary(Beer$ABV1) # 5.6% overall median ABV
+Beer$ABV1=ifelse(is.na(Beer$ABV1),summary(Beer$ABV)[3],Beer$ABV1)
+
+#Median IBU by Style
+Style_IBU = Beer %>% filter(!is.na(IBU)) %>% group_by(Style) %>% summarize(median.IBU=median(IBU),count=n()) %>% arrange(Style)
+Style_IBU_df=as.data.frame(Style_IBU) 
+dim(Style_IBU_df) # 90/100 Styles, missing 10 Styles
+
+#Replace the NA IBUs with the median IBU by Style
+Beer = merge(Beer,Style_IBU,by="Style",all=T)
+Beer$IBU1=ifelse(is.na(Beer$IBU),Beer$median.IBU,Beer$IBU)
+
+#Remaining NA IBUs
+summary(Beer$IBU1) #55/1005 beers remaining with IBU NA values
+#Ciders, Meads, Shandies, and Rauchbiers (smoked beers) typically have IBU=0
+Beer$IBU1=ifelse(Beer$Style=="Cider" | Beer$Style=="Mead" | Beer$Style=="Shandy" | Beer$Style=="Rauchbier",0,Beer$IBU1) #Replace NAs with 0
+summary(Beer$IBU1) #8/1005 beers remaining with IBU NA values
+
+#Cider "Nunica Pine" and Mead "Nectar of Hops" probably have nonzero IBU
+#Set to overall median IBU
+Beer$IBU1[Beer$Name.Beer=="Nunica Pine" | Beer$Name.Beer=="Nectar of Hops"]=summary(Beer$IBU)[3]
+
+#Replace the remaining 8 NA IBUs with overall median IBU
+Beer$IBU1=ifelse(is.na(Beer$IBU1),summary(Beer$IBU)[3],Beer$IBU1)
+
+```
+
+## 4a. Compute the median alcohol content and international bitterness unit for each state. Plot a bar chart to compare. 
+
+###Filtering out NA values.
+```{r Median ABV and IBU by State, echo=FALSE}
+#Median ABV by State with ABV NAs
+State_ABV = Beer %>% filter(!is.na(ABV)) %>% group_by(State) %>% summarize(median.ABV=median(ABV)*100) %>% arrange(-median.ABV)
+State_ABV_df=as.data.frame(State_ABV)
+State_ABV_df
+
+#Plot of ABV by State in alphabetic order
+State_ABV_df %>% ggplot(aes(State,median.ABV,fill=State)) + geom_col() + ggtitle("Median Beer ABV by State - Excludes Missing Values")
+
+#Plot of ABV by State in decreasing order
+State_ABV_df$State1=factor(State_ABV_df$State,levels=State_ABV_df$State[order(-State_ABV_df$median.ABV)]) 
+State_ABV_df %>% ggplot(aes(State1,median.ABV,fill=State1)) + geom_col() + ggtitle("Median Beer ABV by State - Excludes Missing Values") + xlab("State")
+
+#Median IBU by State
+State_IBU = Beer %>% filter(!is.na(IBU)) %>% group_by(State) %>% summarize(median.IBU=median(IBU)) %>% arrange(-median.IBU)
+State_IBU_df=as.data.frame(State_IBU)
+State_IBU_df
+
+
+#Plot of IBU by State in alphabetic order
+State_IBU_df %>% ggplot(aes(State,median.IBU,fill=State)) + geom_col() + ggtitle("Median Beer IBU by State- Excludes Missing Values")
+
+#Plot of ABV by State in decreasing order
+State_IBU_df$State1=factor(State_IBU_df$State,levels=State_IBU_df$State[order(-State_IBU_df$median.IBU)]) 
+State_IBU_df %>% ggplot(aes(State1,median.IBU,fill=State1)) + geom_col() + ggtitle("Median Beer IBU by State - Excludes Missing Values") + xlab("State")
+
+```
+
+## 4b. Compute the median alcohol content and international bitterness unit for each state. Plot a bar chart to compare. 
+
+###Imputed NA values from median values by Style.
+```{r Median ABV and IBU by State, echo=FALSE}
+#Overall medians
+summary(Beer$ABV1)[3]*100 # 5.6% ABV
+summary(Beer$IBU1)[3] # 32 IBUs
+
+#Median ABV by State 
+State_ABV1 = Beer %>% group_by(State) %>% summarize(Median.ABV=median(ABV1)*100) %>% arrange(-Median.ABV)
+State_ABV1_df=as.data.frame(State_ABV1)
+State_ABV1_df
+
+#Plot of ABV by State in alphabetic order
+State_ABV1_df %>% ggplot(aes(State,Median.ABV,fill=State)) + geom_col() + ggtitle("Median Beer ABV by State - Includes Predicted Values for Missing Data")
+
+#Plot of ABV by State in decreasing order
+State_ABV1_df$State1=factor(State_ABV1_df$State,levels=State_ABV1_df$State[order(-State_ABV1_df$Median.ABV)]) 
+State_ABV1_df %>% ggplot(aes(State1,Median.ABV,fill=State1)) + geom_col() + ggtitle("Median Beer ABV by State - Includes Predicted Values for Missing Data") + xlab("State")
+
+
+#Median IBU by State  
+State_IBU1 = Beer %>% group_by(State) %>% summarize(Median.IBU=median(IBU1)) %>% arrange(-Median.IBU)
+State_IBU1_df=as.data.frame(State_IBU1)
+State_IBU1_df
+
+#Plot of IBU by State in alphabetic order
+State_IBU1_df %>% ggplot(aes(State,Median.IBU,fill=State)) + geom_col() + ggtitle("Median Beer IBU by State - Includes Predicted Values for Missing Data")
+
+#Plot of IBU by State in decreasing order
+State_IBU1_df$State1=factor(State_IBU1_df$State,levels=State_IBU1_df$State[order(-State_IBU1_df$Median.IBU)]) 
+State_IBU1_df %>% ggplot(aes(State1,Median.IBU,fill=State1)) + geom_col() + ggtitle("Median Beer IBU by State - Includes Predicted Values for Missing Data") + xlab("State")
+
+```
+
+## 5. Which state has the maximum alcoholic (ABV) beer? Which state has the most bitter (IBU) beer?
+
+Colorado has the maximum alcoholic (ABV) beer of 12.8%, "Lee Hill Series Vol. 5 - Belgian Style Quadrupel Ale" by Upslope Brewing.
+
+Oregon has the most bitter (IBU) beer of 138 IBU, "Bitter Bitch Imperial IPA" by Astoria Brewing Company.
+
+```{r Max ABV and IBU}
+Beer[Beer$ABV1==max(Beer$ABV1),] #CO
+Beer[Beer$IBU1==max(Beer$IBU1),] #OR
+```
+
+## 6. Comment on the summary statistics and distribution of the ABV variable
+
+ABV values range from 0.1% to 12.8% with a median of 5.6% and a mean of 6.0%.  The higher mean vs. the median indicates the distribution is right-skewed, and the histogram plot visually confirms this.   
+
+```{r Summary and Distribution}
+summary(Beer$ABV1)
+
+Beer %>% ggplot(aes(ABV1*100)) + geom_histogram() + xlab("% Alcohol by Volume (%ABV)") + ggtitle("Distribution of Beer %ABV, Right-Skewed")
+```
+
+## 7. Is there an apparent relationship between the bitterness of the beer and its alcoholic content? Draw a scatter plot.  Make your best judgment of a relationship and EXPLAIN your answer.
+
+There appears to be an approximately relationship between %ABV and IBU.  There are some outliers with low leverage and influence.
+
+The imputed IBU values are evident from the vertical clustering at IBU=0, IBU=median(IBU), etc.
+
+
+```{r ABV vs. IBU}
+
+#Exclude Missing Values
+Beer %>% filter(!is.na(IBU) & !is.na(ABV)) %>% ggplot(aes(IBU,ABV*100)) + geom_count() + geom_smooth(method="lm") + ggtitle("Scatterplot of Beer %ABV vs. IBU - Excludes Missing Values") + xlab("Bitterness (IBUs)") + ylab("%ABV")
+
+#Exclude Missing Values, Color & Wrap by Beer Style
+Beer %>% filter(!is.na(IBU) & !is.na(ABV)) %>% ggplot(aes(IBU,ABV*100,color=Style)) + geom_count() + ggtitle("Scatterplot of Beer %ABV vs. IBU - Excludes Missing Values") + xlab("Bitterness (IBUs)") + ylab("%ABV") + theme(legend.position = "none") + facet_wrap(~Style)
+
+#With Imputed Missing Values
+Beer %>% ggplot(aes(IBU1,ABV1*100)) + geom_count() + geom_smooth(method="lm") + ggtitle("Scatterplot of Beer %ABV vs. IBU - Includes Predicted Values for Missing Data") + xlab("Bitterness (IBUs)") + ylab("%ABV")
+
+#With Imputed Missing Values, Color & Wrap by Beer Style
+Beer %>% ggplot(aes(IBU1,ABV1*100,color=Style)) + geom_count() + ggtitle("Scatterplot of Beer %ABV vs. IBU - Includes Predicted Values for Missing Data") + xlab("Bitterness (IBUs)") + ylab("%ABV") + theme(legend.position = "none") + facet_wrap(~Style)
+
+Beer %>% ggplot(aes(IBU1,log(ABV1))) + geom_count() + geom_smooth(method="lm") + ggtitle("Scatterplot of Beer Log(%ABV) vs. IBU - Includes Predicted Values for Missing Data") + xlab("Bitterness (IBUs)") + ylab("Log(%ABV)")
+
+Beer %>% filter(ABV1<0.01) # "Scotty K NA"
+
+#Remove extreme Outlier "Scotty K NA"
+Beer %>% filter(ABV1>0.01) %>% ggplot(aes(IBU1,log(ABV1))) + geom_count() + geom_smooth(method="lm") + ggtitle("Scatterplot of Beer Log(%ABV) vs. IBU - Includes Predicted Values for Missing Data") + xlab("Bitterness (IBUs)") + ylab("Log(%ABV)")
+
+
+```
