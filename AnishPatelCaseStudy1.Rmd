@@ -1,0 +1,78 @@
+---
+title: "CaseStudy1"
+author: "Anish Patel"
+date: "2/22/2020"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE,
+	comment = NULL
+)
+library(tidyverse)
+library(maps)
+library(mapproj)
+```
+
+
+
+```{r}
+Breweries <- read_csv("Breweries.csv")
+library(ggmap)
+library(ggplot2)
+library(ggmap)
+library(maps)
+library(mapdata)
+library(openintro)
+library(plotly)
+```
+
+## Data
+
+```{r}
+states <- read.csv("states.csv")
+dat = Breweries
+
+#obtain the count of the number of breweres by state
+state_count = dat %>% group_by(State) %>% count() %>% arrange(-n)
+
+#states <- map_data("state")
+
+#states  = states %>% mutate(State_ABB = state2abbr(region))
+
+#states = states %>% inner_join(state_count, by = c("State_ABB" = "State"))
+
+```
+
+## Bar Chart 
+
+```{r}
+library(billboarder)
+billboarder() %>%
+  bb_barchart(state_count)
+```
+
+## Heatmap
+
+```{r}
+#Here we are creating heatmap to show quanties. 
+heat_map = ggplot(data = states) + 
+  geom_polygon(aes(x = long, y = lat, fill = n, group = group), color = "white") + 
+  coord_fixed(1.3) +
+  scale_fill_gradientn(colours = rev(heat.colors(10)),na.value = "grey90",
+                       guide = guide_colourbar(barwidth = 5, barheight = 0.4,
+                                               #put legend title on top of legend
+                                               title.position = "top")) + 
+  labs(title = "Quantities of Breweries by State")
+  
+ggplotly(heat_map)
+
+  
+```
+
+
