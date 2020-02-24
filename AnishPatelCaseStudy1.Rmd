@@ -30,31 +30,29 @@ library(maps)
 library(mapdata)
 library(openintro)
 library(plotly)
+library(billboarder)
+library(vctrs)
 ```
 
-## Data
+## Question 1 - How many Brewereries are in Each State?
 
 ```{r}
-states <- read.csv("states.csv")
+
 dat = Breweries
 
-#obtain the count of the number of breweres by state
+#obtain the count of the number of breweres by state arranged in decending order
 state_count = dat %>% group_by(State) %>% count() %>% arrange(-n)
 
-#states <- map_data("state")
-
-#states  = states %>% mutate(State_ABB = state2abbr(region))
-
-#states = states %>% inner_join(state_count, by = c("State_ABB" = "State"))
 
 ```
 
-## Bar Chart 
+## Bar Chart of Brewery Count by State
 
 ```{r}
-library(billboarder)
+
 billboarder() %>%
-  bb_barchart(state_count)
+  bb_barchart(state_count) %>%
+  bb_labs(title = "Count of Breweries by State")
 ```
 
 ## Heatmap
@@ -68,11 +66,42 @@ heat_map = ggplot(data = states) +
                        guide = guide_colourbar(barwidth = 5, barheight = 0.4,
                                                #put legend title on top of legend
                                                title.position = "top")) + 
-  labs(title = "Quantities of Breweries by State")
+  labs(title = "Count of Breweries by State (Continental US)")
   
 ggplotly(heat_map)
 
   
 ```
 
+## Question 2 - Merge data by Brew ID, and check first 6 and last 6 obs.
 
+```{r}
+
+#rename col to match Brewery Data set
+colnames(Beers)[5]="Brew_ID"
+
+#merge data by Brew_ID 
+final=merge(Beers,Breweries,by=c("Brew_ID"))
+
+head(final,n=6)
+tail(final,n=6)
+
+```
+
+## Question 3 - How to deal with Missing Values
+```{r}
+
+#Of the missing values, 1005 are missing for "IBU", 5 missing values for "Style"", and 62 missing values for ABV, and 1,005 missing values for IBU.  
+
+
+#One method would be to omit the observations with missing data which isn't ideal since we will lose quite a few observations
+
+nabeers=na.omit(final)
+
+#The other method would be to impute the median values of the variable to the missing variables.
+
+#Find Medians of Style, IBU, and ABV
+
+```
+
+##Question 4 - 
