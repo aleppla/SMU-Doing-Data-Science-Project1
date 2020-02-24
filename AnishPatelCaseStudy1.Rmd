@@ -104,4 +104,6 @@ nabeers=na.omit(final)
 
 ```
 
-##Question 4 - 
+##Question 4 - What is the median alcohol content and international bitterness unit for each state?
+
+final%>%group_by(State)%>%summarise(median(ABV),median(IBU))
