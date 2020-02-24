@@ -22,7 +22,6 @@ library(mapproj)
 
 
 ```{r}
-Breweries <- read_csv("Breweries.csv")
 library(ggmap)
 library(ggplot2)
 library(ggmap)
@@ -32,7 +31,12 @@ library(openintro)
 library(plotly)
 library(billboarder)
 library(vctrs)
+library(dplyr)
+states <- read.csv("~/Downloads/states.csv")
+Breweries <- read.csv("~/Downloads/Breweries.csv")
+Beers <- read.csv("~/Downloads/Beers.csv")
 ```
+
 
 ## Question 1 - How many Brewereries are in Each State?
 
@@ -53,6 +57,7 @@ state_count = dat %>% group_by(State) %>% count() %>% arrange(-n)
 billboarder() %>%
   bb_barchart(state_count) %>%
   bb_labs(title = "Count of Breweries by State")
+   
 ```
 
 ## Heatmap
@@ -96,7 +101,8 @@ tail(final,n=6)
 
 #One method would be to omit the observations with missing data which isn't ideal since we will lose quite a few observations
 
-nabeers=na.omit(final)
+omita=na.omit(final, cols = "ABV")
+omiti=na.omit(final, cols = "IBU")
 
 #The other method would be to impute the median values of the variable to the missing variables.
 
@@ -106,4 +112,64 @@ nabeers=na.omit(final)
 
 ##Question 4 - What is the median alcohol content and international bitterness unit for each state?
 
-final%>%group_by(State)%>%summarise(median(ABV),median(IBU))
+```{r}
+
+#find median of ABV and IBU
+ omita%>%group_by(State)%>%summarise(median(ABV),median(IBU))
+
+```
+
+## Question 5 - Which state has the most bitter beer and highest ABV
+
+When we exclude all of the missing values, we find that Maine has both the highest median of ABV and IBU amongst all states.  THe highest ABV is London Balling from KY.  The most bitter beer (highest IBU) is "Bitter Bitch Imperial IPA" from OR.
+
+```{r}
+
+medianalc=as.data.frame(omita%>%group_by(State)%>%summarise(median(ABV)))
+medianibu=as.data.frame(omiti%>%group_by(State)%>%summarise(median(IBU)))
+
+                        
+#label columns
+colnames(medianalc)=c("State","ABV")
+colnames(medianibu)=c("State","IBU")
+
+#sort in descending order
+medianalc = medianalc %>% arrange(-ABV)
+medianibu = medianibu %>% arrange(-IBU)
+
+#create charts
+
+billboarder() %>%
+  bb_barchart(medianalc) %>%
+  bb_labs(title = "Median ABV of Breweries by State")
+
+billboarder() %>%
+  bb_barchart(medianibu) %>%
+  bb_labs(title = "Median IBU of Breweries by State")
+
+#Find beer with MAX ABV and MAX IBU
+omita[omita$ABV==max(omita$ABV),] 
+omiti[omiti$IBU==max(omiti$IBU),] 
+
+
+  
+```
+## Question 6 - Comment on Distribution of ABV and summary statistics
+We see that the distribution to be right skewed (the mean of 0.05977 is greater than the median of 0.05600) as seen in the histogram.  We wee a range of 0.001 - 0.128 in the data for ABV.  There are 62 missing values that we exclude from the analysis.
+```{r}
+
+
+summary(omita$ABV)
+final %>% ggplot(aes(ABV*100)) + geom_histogram() + xlab("Alcohol by Volume") + ggtitle("Distribution of Beer ABV") 
+
+
+```
+
+## Question 7 - Is there a relationship between IBU and ABV?
+Looking at the plot, there does appear to be an association between IBU and ABV.  As the ABV increases, we see IBU tends to increase as well.  Theres seems to be a direct positive relationship between the two variables.  There are some extreme outliers with extremely high ABV seen in the far right of the plot.
+```{r}
+
+ggplot(data=omita) + geom_point(aes(x=ABV,y=IBU)) + ggtitle ("IBU vs ABV (Excluding all Missing Values)")
+
+```
+
