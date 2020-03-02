@@ -1,7 +1,7 @@
 ---
 title: "DDS Project 1 - Beer Reviews"
 author: "Andrew Leppla"
-date: "2/18/2020"
+date: "3/2/2020"
 output: html_document
 ---
 
@@ -17,8 +17,8 @@ When you click the **Knit** button a document will be generated that includes bo
 
 
 ```{r import, echo=FALSE}
-Beers = read.csv("C:/Users/aleppla/GitRepos/MDS-6306-Doing-Data-Science/Unit 8 and 9 Case Study 1/Beers.csv",header=T)
-Breweries = read.csv("C:/Users/aleppla/GitRepos/MDS-6306-Doing-Data-Science/Unit 8 and 9 Case Study 1/Breweries.csv",header=T)
+Beers = read.csv("C:/Users/allep/OneDrive/Documents/MDS-6306-Doing-Data-Science/Unit 8 and 9 Case Study 1/Beers.csv",header=T)
+Breweries = read.csv("C:/Users/allep/OneDrive/Documents/MDS-6306-Doing-Data-Science/Unit 8 and 9 Case Study 1/Breweries.csv",header=T)
 ```
 
 ## 1. How many breweries are present in each state?
@@ -32,11 +32,11 @@ State_Breweries_df=as.data.frame(State_Breweries)
 State_Breweries_df
 
 #Plot of No. Breweries by State in alphabetical order
-State_Breweries_df %>% ggplot(aes(State,No.Breweries,fill=State)) + geom_col() + ggtitle("Number of Breweries by State") + ylab("# Breweries")
+State_Breweries_df %>% ggplot(aes(State,No.Breweries,fill=State)) + geom_col() + ggtitle("Number of Breweries by State") + ylab("# Breweries") + theme(legend.position = "none") 
 
 #Plot of No. Breweries by State in decreasing order
 State_Breweries_df$State1=factor(State_Breweries_df$State,levels=State_Breweries_df$State[order(-State_Breweries_df$No.Breweries)]) 
-State_Breweries_df %>% ggplot(aes(State1,No.Breweries,fill=State1)) + geom_col() + ggtitle("Number of Breweries by State") + ylab("# Breweries") + xlab("State")
+State_Breweries_df %>% ggplot(aes(State1,No.Breweries,fill=State1)) + geom_col() + ggtitle("Number of Breweries by State") + ylab("# Breweries") + xlab("State") + theme(legend.position = "none") 
 ```
 
 ## 2. Merge beer data with the breweries data. Print the first 6 observations and the last six observations to check the merged file. 
@@ -75,8 +75,9 @@ Beer %>% filter(is.na(ABV)) #Some Styles are blank ""
 Beer %>% filter(Style=='') #5 missing beer Styles  
 
 #Replace 2 of the missing Styles based on Beer Name 
-Beer$Style[Beer$Name.Beer=="OktoberFiesta"]="Märzen / Oktoberfest"
+Beer$Style[Beer$Name.Beer=="OktoberFiesta"]="MÃ¤rzen / Oktoberfest"
 Beer$Style[Beer$Name.Beer=="Kilt Lifter Scottish-Style Ale"]="Scottish Ale"
+Beer$Style[Beer$Style=='']=NA
 
 #Mean ABV by Style
 Style_ABV = Beer %>% filter(!is.na(ABV)) %>% group_by(Style) %>% summarize(median.ABV=median(ABV),count=n()) %>% arrange(Style)
@@ -391,7 +392,7 @@ grep(max(CM_summary$Accuracy),CM_summary$Accuracy) #k=4 or 5
 grep(max(CM_summary$Sensitivity),CM_summary$Sensitivity) #k=4 or 5
 grep(max(CM_summary$Specificity),CM_summary$Specificity) #k=11
 
-CM_summary %>% ggplot() + geom_line(aes(k,Accuracy,color="Accuracy")) + geom_line(aes(k,Sensitivity,color="Sensitivity")) + geom_line(aes(k,Specificity,color="Specificity")) + geom_vline(xintercept=c(4,5,11)) + ylab("%")
+CM_summary %>% ggplot() + geom_line(aes(k,Accuracy,color="Accuracy")) + geom_line(aes(k,Sensitivity,color="Sensitivity")) + geom_line(aes(k,Specificity,color="Specificity")) + geom_vline(xintercept=c(4,5,11)) + ylab("%") + ggtitle("Optimal k for Classifying IPAs vs. other Ales")
 
 ```
 
@@ -448,7 +449,7 @@ grep(max(CM_summary$Accuracy),CM_summary$Accuracy) #k=5 or 37
 grep(max(CM_summary$Sensitivity),CM_summary$Sensitivity) #k=4
 grep(max(CM_summary$Specificity),CM_summary$Specificity) #k=37
 
-CM_summary %>% ggplot() + geom_line(aes(k,Accuracy,color="Accuracy")) + geom_line(aes(k,Sensitivity,color="Sensitivity")) + geom_line(aes(k,Specificity,color="Specificity")) + geom_vline(xintercept=c(4,5,15,37)) + ylab("%")
+CM_summary %>% ggplot() + geom_line(aes(k,Accuracy,color="Accuracy")) + geom_line(aes(k,Sensitivity,color="Sensitivity")) + geom_line(aes(k,Specificity,color="Specificity")) + geom_vline(xintercept=c(4,5,15,37)) + ylab("%") + ggtitle("Optimal k for Classifying IPAs vs. other Ales")
 
 ```
 
