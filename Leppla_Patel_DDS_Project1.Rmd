@@ -60,36 +60,42 @@ There are 5 missing values for Style, 62 missing values for ABV, and 1,005 missi
 
 First, 2 of the 5 missing Style values were imputed based on the individual beer names.  "OktoberFiesta" had a beer name, ABV, and IBU that were consistent with the other Oktoberfest style beers.  Similarly, "Kilt Lifter Scottish-Style Ale" was consistent with the Scottish Ales style beers.  The remaining 3 beers with missing Style values did not have enough information to classify their Style.  For those 3, Style was left blank, and the missing IBU and ABV values were set to the overall median values of the entire data set.
 
-Missing ABV and IBU values were generally addressed by replacing NA's with the median values for each specific beer Style.  All of the missing ABV values were imputed this way except for the 3 beers mentioned above with missing Style values.  55 of the 1,005 missing IBU values could not be imputed this way because those Styles were missing all IBU values.  These 55 beers were associated with 10 different Styles which are address next.                  
+Beer Style is a grouping/classification for beers that's been established by brewers based on brewing traditions and their domain expertise.  Beers within an established Beer Style tend to have more similar alcohol content and bitterness (low within group variation), whereas beers that differ in Style tend to have less similar ABV and IBUs (high between group variation).  BAsed on this knowledge, median ABV and IBU values were calculated for all 100 Beer Styles.  Missing ABV and IBU values were generally addressed by replacing NA's with the matching Beer Style's median values.                
 
-Ciders, Meads, Shandies, and Rauchbiers (smoked beers) styles are all typically made with no hops or bittering of any kind.  These missing IBU values were set to 0 based on this domain knowledge.  There were 2 exceptions where the product names indicated there may be some hops added contrary to the style conventions: Cider "Nunica Pine" and Mead "Nectar of Hops".  For these 2, the missing IBU values were set to the overall median IBU value for the data set.            
+55 of the 1,005 missing IBU values could not be imputed this way because those Styles were missing all IBU values.  These 55 beers were associated with 10 unique Styles that had no IBU values.  Ciders, Meads, Shandies, and Rauchbiers (smoked beers) styles are all typically made with no hops or bittering of any kind.  These missing IBU values were set to 0 based on this domain knowledge.  There were 2 exceptions where the product names indicated there may be some hops added, contrary to the style conventions: Cider "Nunica Pine" and Mead "Nectar of Hops".  For these 2, the missing IBU values were set to the overall median IBU value for the entire data set.            
 
-Finally, the remaining missing IBU values were set to the overall median IBU value for the data set.
+Finally, the remaining 11 missing IBU values were set to the overall median IBU value for the entire data set.  
 
-All further analyses were done by both exlcuding the missing values and using the imputed values. 
+All further analyses were done by both excluding the missing values and by using the imputed values. 
 ```{r Merge and Missing Values, echo=FALSE}
 summary(Beer) #62 NA ABV values, 1005 NA IBU values
 length(Beer$IBU) #Almost half of IBUs are NAs
 
-Beer %>% filter(is.na(ABV)) #Some Styles are blank
+Beer %>% filter(is.na(ABV)) #Some Styles are blank ""
 Beer %>% filter(Style=='') #5 missing beer Styles  
 
-#Replace the missing Styles based on Beer Name 
-Beer$Style[Beer$Name.Beer=="OktoberFiesta"]="MÃ¤rzen / Oktoberfest"
+#Replace 2 of the missing Styles based on Beer Name 
+Beer$Style[Beer$Name.Beer=="OktoberFiesta"]="Märzen / Oktoberfest"
 Beer$Style[Beer$Name.Beer=="Kilt Lifter Scottish-Style Ale"]="Scottish Ale"
 
 #Mean ABV by Style
 Style_ABV = Beer %>% filter(!is.na(ABV)) %>% group_by(Style) %>% summarize(median.ABV=median(ABV),count=n()) %>% arrange(Style)
 Style_ABV_df=as.data.frame(Style_ABV)
+dim(Style_ABV_df) # 99/100 Styles
 
 #Replace the NA ABVs with the median ABV by Style
 Beer = merge(Beer,Style_ABV,by="Style",all=T)
 Beer$ABV1=ifelse(is.na(Beer$ABV),Beer$median.ABV,Beer$ABV)
 summary(Beer$ABV1) #3 remaining NAs
 
-#Replace last 3 NAs with the overall median ABV
+#For remaining 3 missing Styles, replace with the overall median ABV
 summary(Beer$ABV1) # 5.6% overall median ABV
 Beer$ABV1=ifelse(is.na(Beer$ABV1),summary(Beer$ABV)[3],Beer$ABV1)
+
+#Check that all ABV NAs have been replaced
+summary(Beer$ABV1) #No NA's
+length(Beer$ABV1) #2410 rows
+
 
 #Median IBU by Style
 Style_IBU = Beer %>% filter(!is.na(IBU)) %>% group_by(Style) %>% summarize(median.IBU=median(IBU),count=n()) %>% arrange(Style)
@@ -103,7 +109,7 @@ Beer$IBU1=ifelse(is.na(Beer$IBU),Beer$median.IBU,Beer$IBU)
 #Remaining NA IBUs
 summary(Beer$IBU1) #55/1005 beers remaining with IBU NA values
 #Ciders, Meads, Shandies, and Rauchbiers (smoked beers) typically have IBU=0
-Beer$IBU1=ifelse(Beer$Style=="Cider" | Beer$Style=="Mead" | Beer$Style=="Shandy" | Beer$Style=="Rauchbier",0,Beer$IBU1) #Replace NAs with 0
+Beer$IBU1=ifelse(Beer$Style=="Cider" | Beer$Style=="Mead" | Beer$Style=="Shandy" | Beer$Style=="Rauchbier",0,Beer$IBU1) #Replace NAs with 0 for these Styles
 summary(Beer$IBU1) #8/1005 beers remaining with IBU NA values
 
 #Cider "Nunica Pine" and Mead "Nectar of Hops" probably have nonzero IBU
@@ -113,36 +119,46 @@ Beer$IBU1[Beer$Name.Beer=="Nunica Pine" | Beer$Name.Beer=="Nectar of Hops"]=summ
 #Replace the remaining 8 NA IBUs with overall median IBU
 Beer$IBU1=ifelse(is.na(Beer$IBU1),summary(Beer$IBU)[3],Beer$IBU1)
 
+#Check that all NA IBUs have been replaced
+summary(Beer$IBU1) #No NA values
+length(Beer$IBU1) #2410 rows
+
 ```
 
 ## 4a. Compute the median alcohol content and international bitterness unit for each state. Plot a bar chart to compare. 
 
-###Filtering out NA values.
+###Filtered out NA values.
 ```{r Median ABV and IBU by State, echo=FALSE}
 #Median ABV by State with ABV NAs
-State_ABV = Beer %>% filter(!is.na(ABV)) %>% group_by(State) %>% summarize(median.ABV=median(ABV)*100) %>% arrange(-median.ABV)
+State_ABV = Beer %>% filter(!is.na(ABV)) %>% group_by(State) %>% summarize(Median.ABV=median(ABV)*100) %>% arrange(-Median.ABV)
 State_ABV_df=as.data.frame(State_ABV)
 State_ABV_df
 
 #Plot of ABV by State in alphabetic order
-State_ABV_df %>% ggplot(aes(State,median.ABV,fill=State)) + geom_col() + ggtitle("Median Beer ABV by State - Excludes Missing Values")
+State_ABV_df %>% ggplot(aes(State,Median.ABV,fill=State)) + geom_col() + ggtitle("Median Beer ABV by State - Excludes Missing Values") + theme(legend.position = "none") 
 
 #Plot of ABV by State in decreasing order
-State_ABV_df$State1=factor(State_ABV_df$State,levels=State_ABV_df$State[order(-State_ABV_df$median.ABV)]) 
-State_ABV_df %>% ggplot(aes(State1,median.ABV,fill=State1)) + geom_col() + ggtitle("Median Beer ABV by State - Excludes Missing Values") + xlab("State")
+State_ABV_df$State1=factor(State_ABV_df$State,levels=State_ABV_df$State[order(-State_ABV_df$Median.ABV)]) 
+State_ABV_df %>% ggplot(aes(State1,Median.ABV,fill=State1)) + geom_col() + ggtitle("Median Beer ABV by State - Excludes Missing Values") + xlab("State") + theme(legend.position = "none") 
+
+#Top 15 States for Highest Median ABV
+head(State_ABV_df,n=15) %>% ggplot(aes(State1,Median.ABV,fill=State1)) + geom_col() + ggtitle("Excludes Missing Values") + xlab("State") + theme(legend.position = "none") 
+
 
 #Median IBU by State
-State_IBU = Beer %>% filter(!is.na(IBU)) %>% group_by(State) %>% summarize(median.IBU=median(IBU)) %>% arrange(-median.IBU)
+State_IBU = Beer %>% filter(!is.na(IBU)) %>% group_by(State) %>% summarize(Median.IBU=median(IBU)) %>% arrange(-Median.IBU)
 State_IBU_df=as.data.frame(State_IBU)
 State_IBU_df
 
-
 #Plot of IBU by State in alphabetic order
-State_IBU_df %>% ggplot(aes(State,median.IBU,fill=State)) + geom_col() + ggtitle("Median Beer IBU by State- Excludes Missing Values")
+State_IBU_df %>% ggplot(aes(State,Median.IBU,fill=State)) + geom_col() + ggtitle("Median Beer IBU by State- Excludes Missing Values") + theme(legend.position = "none") 
 
 #Plot of ABV by State in decreasing order
-State_IBU_df$State1=factor(State_IBU_df$State,levels=State_IBU_df$State[order(-State_IBU_df$median.IBU)]) 
-State_IBU_df %>% ggplot(aes(State1,median.IBU,fill=State1)) + geom_col() + ggtitle("Median Beer IBU by State - Excludes Missing Values") + xlab("State")
+State_IBU_df$State1=factor(State_IBU_df$State,levels=State_IBU_df$State[order(-State_IBU_df$Median.IBU)]) 
+State_IBU_df %>% ggplot(aes(State1,Median.IBU,fill=State1)) + geom_col() + ggtitle("Median Beer IBU by State - Excludes Missing Values") + xlab("State") + theme(legend.position = "none") 
+
+#Top 15 States for Highest Median IBUs
+head(State_IBU_df,n=15) %>% ggplot(aes(State1,Median.IBU,fill=State1)) + geom_col() + ggtitle("Excludes Missing Values") + xlab("State") + theme(legend.position = "none") 
 
 ```
 
@@ -160,11 +176,14 @@ State_ABV1_df=as.data.frame(State_ABV1)
 State_ABV1_df
 
 #Plot of ABV by State in alphabetic order
-State_ABV1_df %>% ggplot(aes(State,Median.ABV,fill=State)) + geom_col() + ggtitle("Median Beer ABV by State - Includes Predicted Values for Missing Data")
+State_ABV1_df %>% ggplot(aes(State,Median.ABV,fill=State)) + geom_col() + ggtitle("Median Beer ABV by State - Includes Predicted Values for Missing Data") + theme(legend.position = "none") 
 
 #Plot of ABV by State in decreasing order
-State_ABV1_df$State1=factor(State_ABV1_df$State,levels=State_ABV1_df$State[order(-State_ABV1_df$Median.ABV)]) 
-State_ABV1_df %>% ggplot(aes(State1,Median.ABV,fill=State1)) + geom_col() + ggtitle("Median Beer ABV by State - Includes Predicted Values for Missing Data") + xlab("State")
+State_ABV1_df$State2=factor(State_ABV1_df$State,levels=State_ABV1_df$State[order(-State_ABV1_df$Median.ABV)]) 
+State_ABV1_df %>% ggplot(aes(State2,Median.ABV,fill=State2)) + geom_col() + ggtitle("Median Beer ABV by State - Includes Predicted Values for Missing Data") + xlab("State") + theme(legend.position = "none") 
+
+#Top 15 States for Highest Median ABV
+head(State_ABV1_df,n=15) %>% ggplot(aes(State2,Median.ABV,fill=State2)) + geom_col() + ggtitle("Includes Predicted Values for Missing Data") + xlab("State") + theme(legend.position = "none") 
 
 
 #Median IBU by State  
@@ -173,13 +192,38 @@ State_IBU1_df=as.data.frame(State_IBU1)
 State_IBU1_df
 
 #Plot of IBU by State in alphabetic order
-State_IBU1_df %>% ggplot(aes(State,Median.IBU,fill=State)) + geom_col() + ggtitle("Median Beer IBU by State - Includes Predicted Values for Missing Data")
+State_IBU1_df %>% ggplot(aes(State,Median.IBU,fill=State)) + geom_col() + ggtitle("Median Beer IBU by State - Includes Predicted Values for Missing Data") + theme(legend.position = "none") 
 
 #Plot of IBU by State in decreasing order
-State_IBU1_df$State1=factor(State_IBU1_df$State,levels=State_IBU1_df$State[order(-State_IBU1_df$Median.IBU)]) 
-State_IBU1_df %>% ggplot(aes(State1,Median.IBU,fill=State1)) + geom_col() + ggtitle("Median Beer IBU by State - Includes Predicted Values for Missing Data") + xlab("State")
+State_IBU1_df$State2=factor(State_IBU1_df$State,levels=State_IBU1_df$State[order(-State_IBU1_df$Median.IBU)])
+State_IBU1_df %>% ggplot(aes(State2,Median.IBU,fill=State2)) + geom_col() + ggtitle("Median Beer IBU by State - Includes Predicted Values for Missing Data") + xlab("State") + theme(legend.position = "none") 
+
+#Top 15 States for Highest Median IBUs
+head(State_IBU1_df,n=15) %>% ggplot(aes(State2,Median.IBU,fill=State2)) + geom_col() + ggtitle("Includes Predicted Values for Missing Data") + xlab("State") + theme(legend.position = "none") 
 
 ```
+
+##Compare Excluded vs. Imputed Missing Values for ABV and IBU by State
+
+Create clear visuals to highlight differences between excluding NA's and imputing NA's.  Keep the state order the same to highlight shifts in the bar levels.    
+
+```{r}
+
+ABV = merge(State_ABV_df,State_ABV1_df,by="State",suffixes=c(".Excl",".Impt"))
+
+ABV %>% ggplot(aes(State1,Median.ABV.Excl,fill=State1)) + geom_col() + ggtitle("Excludes Missing Data") + xlab("State") + theme(legend.position = "none") + ylab("Median ABV") + coord_cartesian(ylim=c(4,6.5))
+
+ABV %>% ggplot(aes(State1,Median.ABV.Impt,fill=State1)) + geom_col() + ggtitle("Includes Predicted Values for Missing Data") + xlab("State") + theme(legend.position = "none") + ylab("Median ABV") + coord_cartesian(ylim=c(4,6.5))
+
+
+IBU = merge(State_IBU_df,State_IBU1_df,by="State",suffixes=c(".Excl",".Impt"))
+
+IBU %>% ggplot(aes(State1,Median.IBU.Excl,fill=State1)) + geom_col() + ggtitle("Excludes Missing Data") + xlab("State") + theme(legend.position = "none") + ylab("Median IBU")
+
+IBU %>% ggplot(aes(State1,Median.IBU.Impt,fill=State1)) + geom_col() + ggtitle("Includes Predicted Values for Missing Data") + xlab("State") + theme(legend.position = "none") + ylab("Median IBU")
+
+```
+
 
 ## 5. Which state has the maximum alcoholic (ABV) beer? Which state has the most bitter (IBU) beer?
 
@@ -194,31 +238,39 @@ Beer[Beer$IBU1==max(Beer$IBU1),] #OR
 
 ## 6. Comment on the summary statistics and distribution of the ABV variable
 
-ABV values range from 0.1% to 12.8% with a median of 5.6% and a mean of 6.0%.  The higher mean vs. the median indicates the distribution is right-skewed, and the histogram plot visually confirms this.   
+ABV values range from 0.1% to 12.8% with a median of 5.6% and a mean of 6.0%.  The higher mean vs. the median indicates the distribution is right-skewed, and the histogram plot visually confirms this.  This right-skew may indicate a shift in the beer market towards "bigger" high alcohol beers.     
 
 ```{r Summary and Distribution}
 summary(Beer$ABV1)
 
-Beer %>% ggplot(aes(ABV1*100)) + geom_histogram() + xlab("% Alcohol by Volume (%ABV)") + ggtitle("Distribution of Beer %ABV, Right-Skewed")
+Beer %>% ggplot(aes(ABV1*100)) + geom_histogram(fill="darkblue",color="black") + xlab("% Alcohol by Volume (%ABV)") + ggtitle("Distribution of Beer %ABV, Right-Skewed")
 ```
 
 ## 7. Is there an apparent relationship between the bitterness of the beer and its alcoholic content? Draw a scatter plot.  Make your best judgment of a relationship and EXPLAIN your answer.
 
-There appears to be an approximately relationship between %ABV and IBU.  There are some outliers with low leverage and influence.
+There appears to be an approximately linear relationship between %ABV and IBU that may have some curvature.  This positively correlated relationship is likely because people like drinking balanced beers.  Higher alcohol beers tend to also be maltier/sweeter (higher residual sugar) which balances the high bitterness (high IBUs).              
 
-The imputed IBU values are evident from the vertical clustering at IBU=0, IBU=median(IBU), etc.
+There appears to be a boundary near ABV=10% that most beers don't cross.  This may be due to limitations on product cost, beer yeast survival at higher ABV, or state/federal regulations on beer that is 10% ABV or more.     
+
+The imputed IBU values are evident from the vertical bands at IBU=0, IBU=median(IBU), etc.
 
 
 ```{r ABV vs. IBU}
 
 #Exclude Missing Values
-Beer %>% filter(!is.na(IBU) & !is.na(ABV)) %>% ggplot(aes(IBU,ABV*100)) + geom_count() + geom_smooth(method="lm") + ggtitle("Scatterplot of Beer %ABV vs. IBU - Excludes Missing Values") + xlab("Bitterness (IBUs)") + ylab("%ABV")
+Beer %>% filter(!is.na(IBU) & !is.na(ABV)) %>% ggplot(aes(IBU,ABV*100)) + geom_count() + geom_smooth() + ggtitle("Excludes Missing Values") + xlab("Bitterness (IBUs)") + ylab("%ABV") + coord_cartesian(xlim=c(0,150),ylim=c(0,12.6))
 
 #Exclude Missing Values, Color & Wrap by Beer Style
 Beer %>% filter(!is.na(IBU) & !is.na(ABV)) %>% ggplot(aes(IBU,ABV*100,color=Style)) + geom_count() + ggtitle("Scatterplot of Beer %ABV vs. IBU - Excludes Missing Values") + xlab("Bitterness (IBUs)") + ylab("%ABV") + theme(legend.position = "none") + facet_wrap(~Style)
 
+#Line Plot by Styles - Excluded NAs
+Beer %>% filter(!is.na(IBU) & !is.na(ABV)) %>% ggplot(aes(IBU,ABV*100,color=Style)) + geom_smooth(method="lm",se=F) + ggtitle("Scatterplot of Beer %ABV vs. IBU - Excludes Missing Values") + xlab("Bitterness (IBUs)") + ylab("%ABV") + theme(legend.position = "none")+ coord_cartesian(xlim=c(0,150),ylim=c(0,12.6))
+
+#Line Plot by Styles - Predicted NAs
+Beer %>% ggplot() + geom_smooth(aes(IBU1,ABV1*100,color=Style),method="lm",se=F) + ggtitle("Scatterplot of Beer %ABV vs. IBU - Includes Predicted Values for Missing Data") + xlab("Bitterness (IBUs)") + ylab("%ABV") + theme(legend.position = "none") + coord_cartesian(xlim=c(0,150),ylim=c(0,12.6))
+
 #With Imputed Missing Values
-Beer %>% ggplot(aes(IBU1,ABV1*100)) + geom_count() + geom_smooth(method="lm") + ggtitle("Scatterplot of Beer %ABV vs. IBU - Includes Predicted Values for Missing Data") + xlab("Bitterness (IBUs)") + ylab("%ABV")
+Beer %>% ggplot(aes(IBU1,ABV1*100)) + geom_count() + geom_smooth() + ggtitle("Includes Predicted Values for Missing Data") + xlab("Bitterness (IBUs)") + ylab("%ABV")  + coord_cartesian(xlim=c(0,150),ylim=c(0,12.6))
 
 #With Imputed Missing Values, Color & Wrap by Beer Style
 Beer %>% ggplot(aes(IBU1,ABV1*100,color=Style)) + geom_count() + ggtitle("Scatterplot of Beer %ABV vs. IBU - Includes Predicted Values for Missing Data") + xlab("Bitterness (IBUs)") + ylab("%ABV") + theme(legend.position = "none") + facet_wrap(~Style)
@@ -229,6 +281,183 @@ Beer %>% filter(ABV1<0.01) # "Scotty K NA"
 
 #Remove extreme Outlier "Scotty K NA"
 Beer %>% filter(ABV1>0.01) %>% ggplot(aes(IBU1,log(ABV1))) + geom_count() + geom_smooth(method="lm") + ggtitle("Scatterplot of Beer Log(%ABV) vs. IBU - Includes Predicted Values for Missing Data") + xlab("Bitterness (IBUs)") + ylab("Log(%ABV)")
+
+```
+
+## 8.  Budweiser would also like to investigate the difference with respect to IBU and ABV between IPAs (India Pale Ales) and other types of Ale (any beer with "Ale" in its name other than IPA).  You decide to use KNN classification to investigate this relationship.  Provide statistical evidence one way or the other. You can of course assume your audience is comfortable with percentages . KNN is very easy to understand conceptually.
+
+Do IPAs include:
+- Double / Imperial IPAs (high alcohol) 
+- India Style Session Ales (low alcohol)? 
+- American, American White, Belgian, and English IPAs?
+
+```{r EDA IPAs vs. Ales}
+library(stringr)
+
+#How many beers have IPA or Ale in the beer's Name?
+
+#Beers with "IPA" or "I.P.A." or "India Pale Ale" somewhere in the beer's Name
+sum(str_detect(Beer$Name.Beer,"(IPA|I.P.A.|India Pale Ale)")) #382 IPAs
+Beer$Name.Beer[str_detect(Beer$Name.Beer,"India")==T & str_detect(Beer$Name.Beer,"(IPA|India Pale Ale)")==F] #Other "India" beers to consider 
+
+#Beers with "Ale" somewhere in the beer's Name, not including India Pale Ales
+sum(str_detect(Beer$Name.Beer,"Ale")) - sum(str_detect(Beer$Name.Beer,"India Pale Ale")) #577 Ales 
+
+
+### Not all IPAs or Ales have "IPA" or "Ale" in the beer's name ###
+
+
+#How many beers have IPA or Ale as the beer's Style?
+
+Style_ABV_df #Summary table of median ABV and Count by beer Style 
+sum(str_detect(Style_ABV_df$Style,"IPA")) #5 IPA Styles
+Style_ABV_df[str_detect(Style_ABV_df$Style,"IPA")==T,] #Summary of the 5 IPA Styles
+IPA_count = sum(str_detect(Beer$Style,"IPA"))
+IPA_count #571 IPAs total, includes IPAs that had missing ABV values 
+
+sum(str_detect(Style_ABV_df$Style,"Ale")) #29 Ale Styles, including India Pale Ales
+Style_ABV_df[str_detect(Style_ABV_df$Style,"Ale")==T,] #Summary of the Ale Styles
+Ale_count = sum( str_detect(Beer$Style,"Ale") - str_detect(Beer$Style,"India Pale Ale") )
+Ale_count #964 Ales total, not including IPAs
+
+
+#What beers Styles aren't explicitly called "Ale"?
+
+Ales = Beer %>% filter(str_detect(Style,"(IPA|Ale)")==F & str_detect(Name.Beer,"Ale")==T) %>% group_by(Style,Name.Beer) %>% summarize(meanABV=mean(ABV1))
+Ales_df=as.data.frame(Ales)
+Ales_df
+dim(Ales_df) #66 beers that were missed, 1030 Ales total
+
+```
+
+## How well does kNN classify IPAs vs. Ales based on beer name alone?  Can it correctly classify IPAs and Ales that don't have "IPA" or "Ale" in the name?
+
+Using predicted values for missing data, the kNN model predicts IPAs vs. Ales reasonably well with 90% accuracy.
+
+There is a trade-off between Sensitivity and Specificity with the kNN model.  k=5 gives  higher sensitivity (classifies fewer Ales as IPAs), but k=11 gives higher specificity (classifies fewer IPAs as Ales).         
+
+```{r kNN IPAs vs. Ales}
+
+#Filter the data to only keep Ales and IPAs
+IPA_Ale = Beer %>% filter(str_detect(Style,"(IPA|Ale)")==T | str_detect(Name.Beer,"Ale")==T)
+dim(IPA_Ale) #1604 Ales and IPAs
+
+#Label the beers as "IPA" or "Ale"
+IPA_Ale$Class = as.factor( ifelse(str_detect(IPA_Ale$Style,"IPA")==T,"IPA","Ale") )
+summary(IPA_Ale$Class) 
+
+#Plot the data - lots of overlap
+IPA_Ale %>% ggplot(aes(IBU1,ABV1,color=Class)) + geom_jitter()
+
+#Training set based on beers with "Ale" or "IPA" in the Name
+Train = IPA_Ale %>% filter(str_detect(IPA_Ale$Name.Beer,"(IPA|I.P.A.|Ale)")==T)
+dim(Train) #959 beers, 60% split
+summary(Train$Class)
+
+#Plot the Training data 
+Train %>% ggplot(aes(IBU1,ABV1,color=Class)) + geom_jitter() + ggtitle("Training Set")
+
+#Test set based on beers without "Ale" or "IPA" in the Name (only in the Style)
+Test = IPA_Ale %>% filter(str_detect(IPA_Ale$Name.Beer,"(IPA|I.P.A.|Ale)")==F)
+dim(Test) #645 beers, 40% split
+summary(Test$Class) #Count is more skewed towards Ales vs. Training Set
+
+#Plot the Test data 
+Test %>% ggplot(aes(IBU1,ABV1,color=Class)) + geom_jitter() + ggtitle("Test Set")
+
+#kNN Modeling
+
+library(class) #knn function
+library(caret) #confusionMatrix function
+
+#Find the optimal k 
+
+CM_summary = data.frame(Accuracy = numeric(25), Sensitivity = numeric(25), 
+                        Specificity = numeric(25), k = numeric(25))
+
+for(i in 1:25)
+{
+  classifications = knn(Train[,c(16,13)], Test[,c(16,13)], Train$Class, prob = TRUE, k = i)
+  table(Test$Class,classifications)
+  CM = confusionMatrix(table(Test$Class,classifications))
+  CM_summary$Accuracy[i] = CM$overall[1]
+  CM_summary$Sensitivity[i]=CM$byClass[1]
+  CM_summary$Specificity[i]=CM$byClass[2]
+  CM_summary$k[i] = i
+}
+
+#Max Accuracy and Sensitivity flips between k=4 and k=5 due to random ties with k=4
+grep(max(CM_summary$Accuracy),CM_summary$Accuracy) #k=4 or 5
+grep(max(CM_summary$Sensitivity),CM_summary$Sensitivity) #k=4 or 5
+grep(max(CM_summary$Specificity),CM_summary$Specificity) #k=11
+
+CM_summary %>% ggplot() + geom_line(aes(k,Accuracy,color="Accuracy")) + geom_line(aes(k,Sensitivity,color="Sensitivity")) + geom_line(aes(k,Specificity,color="Specificity")) + geom_vline(xintercept=c(4,5,11)) + ylab("%")
+
+```
+
+## Now exclude the original missing values and repeat the kNN analysis.
+
+In general, the model with excluded NA values performed worse than the model with predicted values for NA's.  
+
+```{r kNN IPAs vs. Ales}
+
+IPA_Ale_NA = IPA_Ale %>% filter(!is.na(ABV) & !is.na(IBU)) 
+
+#Plot the data - lots of overlap
+IPA_Ale_NA %>% ggplot(aes(IBU,ABV,color=Class)) + geom_jitter()
+
+#Training set based on beers with "Ale" or "IPA" in the Name
+Train = IPA_Ale_NA %>% filter(str_detect(IPA_Ale_NA$Name.Beer,"(IPA|I.P.A.|Ale)")==T)
+dim(Train) #607 beers, ~60% split
+summary(Train$Class)
+
+#Plot the Training data 
+Train %>% ggplot(aes(IBU,ABV,color=Class)) + geom_jitter() + ggtitle("Training Set")
+
+#Test set based on beers without "Ale" or "IPA" in the Name (only in the Style)
+Test = IPA_Ale_NA %>% filter(str_detect(IPA_Ale_NA$Name.Beer,"(IPA|I.P.A.|Ale)")==F)
+dim(Test) #380 beers, ~40% split
+summary(Test$Class) #Count is more skewed towards Ales vs. Training Set
+
+#Plot the Test data 
+Test %>% ggplot(aes(IBU,ABV,color=Class)) + geom_jitter() + ggtitle("Test Set")
+
+#kNN Modeling
+
+library(class) #knn function
+library(caret) #confusionMatrix function
+
+#Find the optimal k 
+
+CM_summary = data.frame(Accuracy = numeric(40), Sensitivity = numeric(40), 
+                        Specificity = numeric(40), k = numeric(40))
+
+for(i in 1:40)
+{
+  classifications = knn(Train[,c(16,13)], Test[,c(16,13)], Train$Class, prob = TRUE, k = i)
+  table(Test$Class,classifications)
+  CM = confusionMatrix(table(Test$Class,classifications))
+  CM_summary$Accuracy[i] = CM$overall[1]
+  CM_summary$Sensitivity[i]=CM$byClass[1]
+  CM_summary$Specificity[i]=CM$byClass[2]
+  CM_summary$k[i] = i
+}
+
+
+grep(max(CM_summary$Accuracy),CM_summary$Accuracy) #k=5 or 37
+grep(max(CM_summary$Sensitivity),CM_summary$Sensitivity) #k=4
+grep(max(CM_summary$Specificity),CM_summary$Specificity) #k=37
+
+CM_summary %>% ggplot() + geom_line(aes(k,Accuracy,color="Accuracy")) + geom_line(aes(k,Sensitivity,color="Sensitivity")) + geom_line(aes(k,Specificity,color="Specificity")) + geom_vline(xintercept=c(4,5,15,37)) + ylab("%")
+
+```
+
+## 9. Knock their socks off!  Find one other useful inference from the data that you feel Budweiser may be able to find value in.  You must convince them why it is important and back up your conviction with appropriate statistical evidence. 
+
+- Unexplored variables: City, Brewery, Ounces, Style 
+- 
+
+```{r}
 
 
 ```
