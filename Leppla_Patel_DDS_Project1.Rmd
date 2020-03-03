@@ -391,7 +391,7 @@ for(i in 1:25)
 grep(max(CM_summary$Accuracy),CM_summary$Accuracy) #k=4 or 5
 grep(max(CM_summary$Sensitivity),CM_summary$Sensitivity) #k=4 or 5
 grep(max(CM_summary$Specificity),CM_summary$Specificity) #k=11
-
+                     
 CM_summary %>% ggplot() + geom_line(aes(k,Accuracy,color="Accuracy")) + geom_line(aes(k,Sensitivity,color="Sensitivity")) + geom_line(aes(k,Specificity,color="Specificity")) + geom_vline(xintercept=c(4,5,11)) + ylab("%") + ggtitle("Optimal k for Classifying IPAs vs. other Ales")
 
 ```
@@ -456,9 +456,24 @@ CM_summary %>% ggplot() + geom_line(aes(k,Accuracy,color="Accuracy")) + geom_lin
 ## 9. Knock their socks off!  Find one other useful inference from the data that you feel Budweiser may be able to find value in.  You must convince them why it is important and back up your conviction with appropriate statistical evidence. 
 
 - Unexplored variables: City, Brewery, Ounces, Style 
-- 
+- Are big beers big on alcohol?  Bombers
 
 ```{r}
 
+summary(Beer$Ounces) 
+
+#Bigger beer volume > 16 oz appear to have higher alcohol content
+library(plotly)
+p = Beer %>% ggplot(aes(Ounces,ABV1,color=Style)) + geom_jitter() + theme(legend.position = "none") 
+ggplotly(p)
+
+Beer %>% filter(ABV1>0.099) %>% ggplot(aes(Style,fill=Style)) + geom_bar() + theme(axis.text.x = element_blank()) + ylab("# of 10%+ ABV Beers") + coord_cartesian(ylim=c(0,11))
+
+#Based on state-by-state regulations?
+Beer %>% filter(ABV1==0.099) %>% ggplot(aes(State,fill=State)) + geom_bar() + ylab("# of 9.9% ABV Beers") + coord_cartesian(ylim=c(0,8)) + theme(legend.position = "none")
+
+Beer %>% filter(ABV1>0.098) %>% ggplot(aes(State,fill=State)) + geom_bar() + ylab("# of 9.9%+ ABV Beers") + coord_cartesian(ylim=c(0,8)) + theme(legend.position = "none") 
+
+#CO, IN, NY, KY have beers > 9.9% ABV
 
 ```
