@@ -500,4 +500,27 @@ Beer %>% filter(ABV1>0.098) %>% ggplot(aes(State,fill=State)) + geom_bar() + yla
 
 #CO, IN, NY, KY have beers > 9.9% ABV
 
+#Import Beer Advocate Review Data from Kaggle (https://www.kaggle.com/rdoume/beerreviews).  EDA of Overall Reviews and ABV.  There is some visual evidence to suggest that lower ratings have higher densities at low ABV values while we see the highest ratings have higher densities at higher ABV values.
+
+p <- ggplot(beer_reviews, aes(factor(review_overall), beer_abv))
+p + geom_violin(aes(fill = factor(review_overall))) + ggtitle("Violin Plot: ABV vs. Overall Review") + xlab("Overall Review") + ylab("ABV") + labs(fill = "Overall Review")
+
+
+#Do the different overall rating groups have different ABV averages?
+beer_reviews$group[beer_reviews$review_overall==1 | beer_reviews$review_overall==1.5]="1" 
+beer_reviews$group[beer_reviews$review_overall==2| beer_reviews$review_overall==2.5]="2" 
+beer_reviews$group[beer_reviews$review_overall==3 | beer_reviews$review_overall==3.5]="3" 
+beer_reviews$group[beer_reviews$review_overall==4 | beer_reviews$review_overall==4.5]="4" 
+beer_reviews$group[beer_reviews$review_overall==5]="5" 
+#anova
+model=aov(beer_reviews$beer_abv~beer_reviews$group)
+summary(model)
+TukeyHSD(model)
+#Boxplot
+boxplot(beer_reviews$beer_abv~beer_reviews$group,ylim=c(0,20), xlab = "Overall Rating", ylab = "ABV", main = "Boxplot of Ratings for ABV" )
+
+#Correlation is significant
+beer_reviews=na.omit(beer_reviews)
+cor.test(beer_reviews$beer_abv,beer_reviews$review_overall)
+
 ```
