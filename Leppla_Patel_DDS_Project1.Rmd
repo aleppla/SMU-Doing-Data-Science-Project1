@@ -524,3 +524,36 @@ beer_reviews=na.omit(beer_reviews)
 cor.test(beer_reviews$beer_abv,beer_reviews$review_overall)
 
 ```
+
+- What makes it a Pale Ale vs. IPA anyway?
+
+IPAs are generally (but not always) hoppier and boozier than Pale Ales.  American Double / Imperial IPAs are pushing this trend to new limits 
+
+```{r}
+
+#Filter the data
+IPA_PaleAle = IPA_Ale %>% filter(str_detect(Style,"(IPA|Pale Ale)")==T)
+summary(IPA_PaleAle$Style)
+dim(IPA_PaleAle)
+
+#Label the beers as "American","English", or "Belgian"
+IPA_PaleAle$Country = as.factor( ifelse(str_detect(IPA_PaleAle$Style,"American")==T,"American", ifelse(str_detect(IPA_PaleAle$Style,"English")==T,"English","Belgian")))
+summary(IPA_PaleAle$Country)     
+
+#Categorize the beers by Style without Country
+IPA_PaleAle$Class = gl(4,170,length=859,labels=c("Pale Ale","White IPA","Strong Pale Ale","IPA","Double / Imperial IPA"))
+IPA_PaleAle$Class[grep("Ale",IPA_PaleAle$Style)]="Pale Ale"
+IPA_PaleAle$Class[grep("IPA",IPA_PaleAle$Style)]="IPA"
+IPA_PaleAle$Class[grep("White",IPA_PaleAle$Style)]="White IPA"
+IPA_PaleAle$Class[grep("Double",IPA_PaleAle$Style)]="Double / Imperial IPA"
+IPA_PaleAle$Class[grep("Strong",IPA_PaleAle$Style)]="Strong Pale Ale"
+summary(IPA_PaleAle$Class)
+
+IPA_PaleAle %>% ggplot() + geom_jitter(aes(IBU1,ABV1,color=Class)) + geom_smooth(aes(IBU1,ABV1),method='lm',color="black") + facet_wrap(~Country) + ggtitle("IPA vs. Pale Ale by Country - Predicted Missing Values")
+
+IPA_PaleAle %>% ggplot() + geom_jitter(aes(IBU,ABV,color=Class)) + geom_smooth(aes(IBU1,ABV1),method='lm',color="black") + facet_wrap(~Country) + ggtitle("IPA vs. Pale Ale by Country - Excludes Missing Values")
+
+IPA_PaleAle %>% ggplot(aes(IBU1,ABV1,color=Country)) + geom_jitter() + geom_smooth(method='lm',se=F) + ggtitle("IPA vs. Pale Ale by Country - Predicted Missing Values")
+
+IPA_PaleAle %>% ggplot(aes(IBU,ABV,color=Country)) + geom_jitter() + geom_smooth(method='lm',se=F) + ggtitle("IPA vs. Pale Ale by Country - Excludes Missing Values")
+```
