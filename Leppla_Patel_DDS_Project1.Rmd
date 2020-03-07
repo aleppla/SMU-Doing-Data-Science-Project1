@@ -1,7 +1,7 @@
 ---
 title: "DDS Project 1 - Beer Reviews"
-author: "Andrew Leppla"
-date: "3/2/2020"
+author: "Andrew Leppla & Anish Patel"
+date: "3/7/2020"
 output: html_document
 ---
 
@@ -15,17 +15,20 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
-
+##Import the data
 ```{r import, echo=FALSE}
-Beers = read.csv("C:/Users/allep/OneDrive/Documents/MDS-6306-Doing-Data-Science/Unit 8 and 9 Case Study 1/Beers.csv",header=T)
-Breweries = read.csv("C:/Users/allep/OneDrive/Documents/MDS-6306-Doing-Data-Science/Unit 8 and 9 Case Study 1/Breweries.csv",header=T)
-states = read.csv("~/untitled folder/cs1/FinalCS1/SMU-Doing-Data-Science-Project1/states.csv")
-beer_reviews = read.csv("~/Downloads/beer_reviews.csv")
+setwd("~/SMU-Doing-Data-Science-Project1")
+Beers = read.csv("Beers.csv",header=T)
+Breweries = read.csv("Breweries.csv",header=T)
+states = read.csv("states.csv")
 
+#Download from Kaggle, file too large for GitHub repo 
+#(https://www.kaggle.com/rdoume/beerreviews)
+beer_reviews = read.csv("beer_reviews.csv") 
 ```
 
-## 1. How many breweries are present in each state?
-```{r Breweries by State, echo=FALSE}
+##Load libraries for analysis
+```{r import, echo=FALSE}
 library(dplyr)
 library(tidyverse)
 library(maps)
@@ -37,8 +40,13 @@ library(openintro)
 library(plotly)
 library(billboarder)
 library(vctrs)
+library(stringr)
+library(class) #knn function
+library(caret) #confusionMatrix function
+```
 
-
+## 1. How many breweries are present in each state?
+```{r Breweries by State, echo=FALSE}
 #Table of Number(No.) of Breweries by State in decreasing order
 State_Breweries = Breweries %>% group_by(State) %>% summarize(No.Breweries = n()) %>% arrange(-No.Breweries)
 State_Breweries_df=as.data.frame(State_Breweries)
@@ -61,9 +69,6 @@ brew_map = ggplot(data = states) +
   labs(title = "Count of Breweries by State (Continental US)")
   
 ggplotly(brew_map)
-
-
-
 ```
 
 ## 2. Merge beer data with the breweries data. Print the first 6 observations and the last six observations to check the merged file. 
@@ -78,7 +83,6 @@ Beer = merge(Breweries,Beers,by.x="Brew_ID",by.y="Brewery_id",all = TRUE,suffixe
 
 head(Beer,n=6)
 tail(Beer,n=6)
-
 ```
 
 ## 3. Address the missing values in each column.
@@ -95,14 +99,20 @@ Finally, the remaining 11 missing IBU values were set to the overall median IBU 
 
 All further analyses were done by both excluding the missing values and by using the imputed values. 
 ```{r Merge and Missing Values, echo=FALSE}
-summary(Beer) #62 NA ABV values, 1005 NA IBU values
-length(Beer$IBU) #Almost half of IBUs are NAs
+summary(Beer) #62 NA ABV values (2-3%), 1005 NA IBU values (about 40%)
+
+#Some Styles have European special characters that are read in differently/inconsistently.
+#Not reproducible, replace with latin alphabetical characters
+levels(Beer$Style)[c(34,69,74)] #Styles with special characters
+levels(Beer$Style)[34]="Biere de Garde"
+levels(Beer$Style)[69]="Kolsch"
+levels(Beer$Style)[74]="Marzen / Oktoberfest"
 
 Beer %>% filter(is.na(ABV)) #Some Styles are blank ""
 Beer %>% filter(Style=='') #5 missing beer Styles  
 
 #Replace 2 of the missing Styles based on Beer Name 
-Beer$Style[Beer$Name.Beer=="OktoberFiesta"]="MÃ¤rzen / Oktoberfest"
+Beer$Style[Beer$Name.Beer=="OktoberFiesta"]="Marzen / Oktoberfest"
 Beer$Style[Beer$Name.Beer=="Kilt Lifter Scottish-Style Ale"]="Scottish Ale"
 Beer$Style[Beer$Style=='']=NA
 
@@ -235,7 +245,7 @@ head(State_IBU1_df,n=15) %>% ggplot(aes(State2,Median.IBU,fill=State2)) + geom_c
 
 Create clear visuals to highlight differences between excluding NA's and imputing NA's.  Keep the state order the same to highlight shifts in the bar levels.    
 
-```{r}
+```{r, echo=FALSE}
 
 ABV = merge(State_ABV_df,State_ABV1_df,by="State",suffixes=c(".Excl",".Impt"))
 
@@ -259,7 +269,7 @@ Colorado has the maximum alcoholic (ABV) beer of 12.8%, "Lee Hill Series Vol. 5 
 
 Oregon has the most bitter (IBU) beer of 138 IBU, "Bitter Bitch Imperial IPA" by Astoria Brewing Company.
 
-```{r Max ABV and IBU}
+```{r Max ABV and IBU, echo=FALSE}
 Beer[Beer$ABV1==max(Beer$ABV1),] #CO
 Beer[Beer$IBU1==max(Beer$IBU1),] #OR
 ```
@@ -283,13 +293,10 @@ There appears to be a boundary near ABV=10% that most beers don't cross.  This m
 The imputed IBU values are evident from the vertical bands at IBU=0, IBU=median(IBU), etc.
 
 
-```{r ABV vs. IBU}
+```{r ABV vs. IBU, echo=FALSE}
 
 #Exclude Missing Values
 Beer %>% filter(!is.na(IBU) & !is.na(ABV)) %>% ggplot(aes(IBU,ABV*100)) + geom_count() + geom_smooth() + ggtitle("Excludes Missing Values") + xlab("Bitterness (IBUs)") + ylab("%ABV") + coord_cartesian(xlim=c(0,150),ylim=c(0,12.6))
-
-#Exclude Missing Values, Color & Wrap by Beer Style
-Beer %>% filter(!is.na(IBU) & !is.na(ABV)) %>% ggplot(aes(IBU,ABV*100,color=Style)) + geom_count() + ggtitle("Scatterplot of Beer %ABV vs. IBU - Excludes Missing Values") + xlab("Bitterness (IBUs)") + ylab("%ABV") + theme(legend.position = "none") + facet_wrap(~Style)
 
 #Line Plot by Styles - Excluded NAs
 Beer %>% filter(!is.na(IBU) & !is.na(ABV)) %>% ggplot(aes(IBU,ABV*100,color=Style)) + geom_smooth(method="lm",se=F) + ggtitle("Scatterplot of Beer %ABV vs. IBU - Excludes Missing Values") + xlab("Bitterness (IBUs)") + ylab("%ABV") + theme(legend.position = "none")+ coord_cartesian(xlim=c(0,150),ylim=c(0,12.6))
@@ -299,9 +306,6 @@ Beer %>% ggplot() + geom_smooth(aes(IBU1,ABV1*100,color=Style),method="lm",se=F)
 
 #With Imputed Missing Values
 Beer %>% ggplot(aes(IBU1,ABV1*100)) + geom_count() + geom_smooth() + ggtitle("Includes Predicted Values for Missing Data") + xlab("Bitterness (IBUs)") + ylab("%ABV")  + coord_cartesian(xlim=c(0,150),ylim=c(0,12.6))
-
-#With Imputed Missing Values, Color & Wrap by Beer Style
-Beer %>% ggplot(aes(IBU1,ABV1*100,color=Style)) + geom_count() + ggtitle("Scatterplot of Beer %ABV vs. IBU - Includes Predicted Values for Missing Data") + xlab("Bitterness (IBUs)") + ylab("%ABV") + theme(legend.position = "none") + facet_wrap(~Style)
 
 Beer %>% ggplot(aes(IBU1,log(ABV1))) + geom_count() + geom_smooth(method="lm") + ggtitle("Scatterplot of Beer Log(%ABV) vs. IBU - Includes Predicted Values for Missing Data") + xlab("Bitterness (IBUs)") + ylab("Log(%ABV)")
 
@@ -314,14 +318,9 @@ Beer %>% filter(ABV1>0.01) %>% ggplot(aes(IBU1,log(ABV1))) + geom_count() + geom
 
 ## 8.  Budweiser would also like to investigate the difference with respect to IBU and ABV between IPAs (India Pale Ales) and other types of Ale (any beer with "Ale" in its name other than IPA).  You decide to use KNN classification to investigate this relationship.  Provide statistical evidence one way or the other. You can of course assume your audience is comfortable with percentages . KNN is very easy to understand conceptually.
 
-Do IPAs include:
-- Double / Imperial IPAs (high alcohol) 
-- India Style Session Ales (low alcohol)? 
-- American, American White, Belgian, and English IPAs?
+First, find beers with "IPA" or "Ale" directly in their name for the training set (ex: Ranger IPA).  Second, find IPAs and Ales without those identifiers in their names for the test set (ex: .   
 
-```{r EDA IPAs vs. Ales}
-library(stringr)
-
+```{r EDA IPAs vs. Ales, echo=FALSE}
 #How many beers have IPA or Ale in the beer's Name?
 
 #Beers with "IPA" or "I.P.A." or "India Pale Ale" somewhere in the beer's Name
@@ -362,7 +361,7 @@ dim(Ales_df) #66 beers that were missed, 1030 Ales total
 
 Using predicted values for missing data, the kNN model predicts IPAs vs. Ales reasonably well with 90% accuracy.
 
-There is a trade-off between Sensitivity and Specificity with the kNN model.  k=5 gives  higher sensitivity (classifies fewer Ales as IPAs), but k=11 gives higher specificity (classifies fewer IPAs as Ales).         
+There is a trade-off between Sensitivity and Specificity with the kNN model.  k=5 gives  higher sensitivity (classifies fewer Ales incorrectly as IPAs), but k=11 gives higher specificity (classifies fewer IPAs incorrectly as Ales).         
 
 ```{r kNN IPAs vs. Ales}
 
@@ -374,7 +373,7 @@ dim(IPA_Ale) #1604 Ales and IPAs
 IPA_Ale$Class = as.factor( ifelse(str_detect(IPA_Ale$Style,"IPA")==T,"IPA","Ale") )
 summary(IPA_Ale$Class) 
 
-#Plot the data - lots of overlap
+#Plot the data - some overlap
 IPA_Ale %>% ggplot(aes(IBU1,ABV1,color=Class)) + geom_jitter()
 
 #Training set based on beers with "Ale" or "IPA" in the Name
@@ -394,9 +393,6 @@ summary(Test$Class) #Count is more skewed towards Ales vs. Training Set
 Test %>% ggplot(aes(IBU1,ABV1,color=Class)) + geom_jitter() + ggtitle("Test Set")
 
 #kNN Modeling
-
-library(class) #knn function
-library(caret) #confusionMatrix function
 
 #Find the optimal k 
 
@@ -482,58 +478,11 @@ CM_summary %>% ggplot() + geom_line(aes(k,Accuracy,color="Accuracy")) + geom_lin
 
 ## 9. Knock their socks off!  Find one other useful inference from the data that you feel Budweiser may be able to find value in.  You must convince them why it is important and back up your conviction with appropriate statistical evidence. 
 
-- Unexplored variables: City, Brewery, Ounces, Style 
-- Are big beers big on alcohol?  Bombers
+### What makes a Pale Ale vs. IPA anyway?
 
-```{r}
+IPAs are generally (but not always) hoppier and boozier than Pale Ales.  American Double / Imperial IPAs are pushing this trend to new limits.  Belgian Strong Pale Ales are outliers and may be more similar to Belgian Strong Ales rather than Pale Ales. 
 
-summary(Beer$Ounces) 
-
-#Bigger beer volume > 16 oz appear to have higher alcohol content
-library(plotly)
-p = Beer %>% ggplot(aes(Ounces,ABV1,color=Style)) + geom_jitter() + theme(legend.position = "none") 
-ggplotly(p)
-
-Beer %>% filter(ABV1>0.099) %>% ggplot(aes(Style,fill=Style)) + geom_bar() + theme(axis.text.x = element_blank()) + ylab("# of 10%+ ABV Beers") + coord_cartesian(ylim=c(0,11))
-
-#Based on state-by-state regulations?
-Beer %>% filter(ABV1==0.099) %>% ggplot(aes(State,fill=State)) + geom_bar() + ylab("# of 9.9% ABV Beers") + coord_cartesian(ylim=c(0,8)) + theme(legend.position = "none")
-
-Beer %>% filter(ABV1>0.098) %>% ggplot(aes(State,fill=State)) + geom_bar() + ylab("# of 9.9%+ ABV Beers") + coord_cartesian(ylim=c(0,8)) + theme(legend.position = "none") 
-
-#CO, IN, NY, KY have beers > 9.9% ABV
-
-#Import Beer Advocate Review Data from Kaggle (https://www.kaggle.com/rdoume/beerreviews).  EDA of Overall Reviews and ABV.  There is some visual evidence to suggest that lower ratings have higher densities at low ABV values while we see the highest ratings have higher densities at higher ABV values.
-
-p <- ggplot(beer_reviews, aes(factor(review_overall), beer_abv))
-p + geom_violin(aes(fill = factor(review_overall))) + ggtitle("Violin Plot: ABV vs. Overall Review") + xlab("Overall Review") + ylab("ABV") + labs(fill = "Overall Review")
-
-
-#Do the different overall rating groups have different ABV averages?
-beer_reviews$group[beer_reviews$review_overall==1 | beer_reviews$review_overall==1.5]="1" 
-beer_reviews$group[beer_reviews$review_overall==2| beer_reviews$review_overall==2.5]="2" 
-beer_reviews$group[beer_reviews$review_overall==3 | beer_reviews$review_overall==3.5]="3" 
-beer_reviews$group[beer_reviews$review_overall==4 | beer_reviews$review_overall==4.5]="4" 
-beer_reviews$group[beer_reviews$review_overall==5]="5" 
-#anova
-model=aov(beer_reviews$beer_abv~beer_reviews$group)
-summary(model)
-TukeyHSD(model)
-#The box plots clearly show an association with overall rating of a beer and the ABV of the beer.  As the rating increases it appears that the ABV also increases.
-colors1 = c(rep("red",1),rep("orange",1),rep("yellow",1),rep("pink",1),rep("green",1))
-boxplot(beer_reviews$beer_abv~beer_reviews$group,ylim=c(0,20), xlab = "Overall Rating", ylab = "ABV", main = "Boxplot of Ratings for ABV",col=colors1 )
-
-#Correlation is significant at alpha 0.05
-beer_reviews=na.omit(beer_reviews)
-cor.test(beer_reviews$beer_abv,beer_reviews$review_overall)
-
-```
-
-- What makes it a Pale Ale vs. IPA anyway?
-
-IPAs are generally (but not always) hoppier and boozier than Pale Ales.  American Double / Imperial IPAs are pushing this trend to new limits 
-
-```{r}
+```{r, echo=FALSE}
 
 #Filter the data
 IPA_PaleAle = IPA_Ale %>% filter(str_detect(Style,"(IPA|Pale Ale)")==T)
@@ -561,3 +510,42 @@ IPA_PaleAle %>% ggplot(aes(IBU1,ABV1,color=Country)) + geom_jitter() + geom_smoo
 
 IPA_PaleAle %>% ggplot(aes(IBU,ABV,color=Country)) + geom_jitter() + geom_smooth(method='lm',se=F) + ggtitle("IPA vs. Pale Ale by Country - Excludes Missing Values")
 ```
+
+### Do people actually like boozier beers?
+Deeper dive on alcohol content and beer ratings from Kaggle data set.  Yes, people like boozier beers which is a statistically significant result using ANOVA.
+
+```{r, echo=FALSE}
+#Import Beer Advocate Review Data from Kaggle (https://www.kaggle.com/rdoume/beerreviews).  EDA of Overall Reviews and ABV.  There is some visual evidence to suggest that lower ratings have higher densities at low ABV values while we see the highest ratings have higher densities at higher ABV values.
+
+p <- ggplot(beer_reviews, aes(factor(review_overall), beer_abv))
+p + geom_violin(aes(fill = factor(review_overall))) + ggtitle("Violin Plot: ABV vs. Overall Review") + xlab("Overall Review") + ylab("ABV") + labs(fill = "Overall Review")
+
+
+#Do the different overall rating groups have different ABV averages?
+beer_reviews$group[beer_reviews$review_overall==1 | beer_reviews$review_overall==1.5]="1" 
+beer_reviews$group[beer_reviews$review_overall==2| beer_reviews$review_overall==2.5]="2" 
+beer_reviews$group[beer_reviews$review_overall==3 | beer_reviews$review_overall==3.5]="3" 
+beer_reviews$group[beer_reviews$review_overall==4 | beer_reviews$review_overall==4.5]="4" 
+beer_reviews$group[beer_reviews$review_overall==5]="5" 
+#anova
+model=aov(beer_reviews$beer_abv~beer_reviews$group)
+summary(model)
+TukeyHSD(model)
+#The box plots clearly show an association with overall rating of a beer and the ABV of the beer.  As the rating increases it appears that the ABV also increases.
+colors1 = c(rep("red",1),rep("orange",1),rep("yellow",1),rep("pink",1),rep("green",1))
+boxplot(beer_reviews$beer_abv~beer_reviews$group,ylim=c(0,20), xlab = "Overall Rating", ylab = "ABV", main = "Boxplot of Ratings for ABV",col=colors1 )
+
+#Correlation is significant at alpha 0.05
+beer_reviews=na.omit(beer_reviews)
+cor.test(beer_reviews$beer_abv,beer_reviews$review_overall)
+
+```
+
+##Conclusion
+
+In conclusion, there is a wealth of information in this data set on Beers, Breweries, States, and beer characteristics (Style, IBU, ABV, etc.):  
+- There are dominant brewing states in each region of the US.  
+- Missing IBU data may be important for assessing emerging regional trends.
+- Alcohol (ABV) content is shifting higher driven by demand for bigger, boozier beers.
+- People generally like drinking beers that are balanced for alcohol/sweetness vs. bitterness.
+- Some beer styles can be reliably identified based only on the IBU and ABV content.
