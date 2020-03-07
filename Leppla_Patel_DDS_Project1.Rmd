@@ -19,6 +19,9 @@ When you click the **Knit** button a document will be generated that includes bo
 ```{r import, echo=FALSE}
 Beers = read.csv("C:/Users/allep/OneDrive/Documents/MDS-6306-Doing-Data-Science/Unit 8 and 9 Case Study 1/Beers.csv",header=T)
 Breweries = read.csv("C:/Users/allep/OneDrive/Documents/MDS-6306-Doing-Data-Science/Unit 8 and 9 Case Study 1/Breweries.csv",header=T)
+states = read.csv("~/untitled folder/cs1/FinalCS1/SMU-Doing-Data-Science-Project1/states.csv")
+beer_reviews = read.csv("~/Downloads/beer_reviews.csv")
+
 ```
 
 ## 1. How many breweries are present in each state?
@@ -516,10 +519,11 @@ beer_reviews$group[beer_reviews$review_overall==5]="5"
 model=aov(beer_reviews$beer_abv~beer_reviews$group)
 summary(model)
 TukeyHSD(model)
-#Boxplot
-boxplot(beer_reviews$beer_abv~beer_reviews$group,ylim=c(0,20), xlab = "Overall Rating", ylab = "ABV", main = "Boxplot of Ratings for ABV" )
+#The box plots clearly show an association with overall rating of a beer and the ABV of the beer.  As the rating increases it appears that the ABV also increases.
+colors1 = c(rep("red",1),rep("orange",1),rep("yellow",1),rep("pink",1),rep("green",1))
+boxplot(beer_reviews$beer_abv~beer_reviews$group,ylim=c(0,20), xlab = "Overall Rating", ylab = "ABV", main = "Boxplot of Ratings for ABV",col=colors1 )
 
-#Correlation is significant
+#Correlation is significant at alpha 0.05
 beer_reviews=na.omit(beer_reviews)
 cor.test(beer_reviews$beer_abv,beer_reviews$review_overall)
 
