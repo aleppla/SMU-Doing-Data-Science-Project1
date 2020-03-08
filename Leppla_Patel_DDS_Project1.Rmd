@@ -4,9 +4,6 @@ author: "Andrew Leppla and Anish Patel"
 date: "3/7/2020"
 output: html_document
 ---
-##Introduction
-
-This project analyzes beer and brewery data.  Exploratory data analysis is conducted on the data set to determine which states in the USA are dominant in brewing beer.  The data set contains missing values and the researchers analysis details the best way to deal with these missing values.  The researchers will explore relationships between ABV and IBU in addition to geographical trends.  The researchers will build models to attempt in predicting given beer styles from ABV and IBUs of a beer and investigate other interesting relationships in the beer data set.
 
 knitr::opts_chunk$set(echo = TRUE)
 ```
